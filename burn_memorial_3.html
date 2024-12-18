@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Memorial Room</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        .instructions {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background: rgba(0,0,0,0.5);
+            padding: 10px;
+            font-family: Arial;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        Use A,W,S,D to move<br>
+        Mouse to look around<br>
+        Click to start
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let moveForward = false;
+        let moveBackward = false;
+        let moveLeft = false;
+        let moveRight = false;
+        let canMove = false;
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        document.body.appendChild(renderer.domElement);
+
+        // Room
+        const roomGeometry = new THREE.CylinderGeometry(10, 10, 10, 8);
+        const wallMaterial = new THREE.MeshPhongMaterial({
+            color: 0x808080,
+            side: THREE.BackSide
+        });
+        const room = new THREE.Mesh(roomGeometry, wallMaterial);
+        room.receiveShadow = true;
+        room.rotation.y = Math.PI / 8; // Rotate to face a wall
+        scene.add(room);
+
+        // Load textures
+        const textureLoader = new THREE.TextureLoader();
+        const texture = textureLoader.load('dummy.png');  // TODO: add one loader per texture, and distribute groups of paintings correctly
+        // const sideTextures = [
+        //     textureLoader.load('dummy.png'),
+        //     textureLoader.load('dummy.png'),
+        //     textureLoader.load('dummy.png'),
+        //     textureLoader.load('dummy.png')
+        // ];
+
+
+        // tier 1 painting
+
+        // Create center painting
+        const paintingMaterialCenter = new THREE.MeshBasicMaterial({ 
+            map: texture,
+            side: THREE.DoubleSide
+        });
+        const paintingCenter = new THREE.Mesh(new THREE.PlaneGeometry(6, 6), paintingMaterialCenter);
+        paintingCenter.position.set(0, 0, -9.2);
+        paintingCenter.rotation.y = 0;
+        scene.add(paintingCenter);
+
+        // tier 2 painting
+
+        // Wall angle for left and right oblique walls
+        const wallAngleLeft = Math.PI / 4; // 45 degrees
+        const wallAngleRight = -Math.PI / 4; // -45 degrees
+
+        // Painting dimensions and spacing
+        const painting2Width = 1.5;
+        const painting2Height = 1.5;
+        const painting2Spacing = 0.5;
+
+        // Create 4x4 grid of paintings on left oblique wall
+        const leftPaintings = [];
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                const paintingMaterial = new THREE.MeshBasicMaterial({ 
+                    map: texture
+                });
+                const painting = new THREE.Mesh(new THREE.PlaneGeometry(painting2Width, painting2Height), paintingMaterial);
+                
+                // Positioning calculations for oblique wall
+                const offsetX = -9 * Math.cos(wallAngleLeft) + ((col - 1.5) * (painting2Width + painting2Spacing)) * Math.sin(wallAngleLeft);
+                const offsetZ = -9 * Math.sin(wallAngleLeft) - ((col - 1.5) * (painting2Width + painting2Spacing)) * Math.cos(wallAngleLeft);
+                const offsetY = ((1.5 - row) * (painting2Height + painting2Spacing)); // Center vertically
+                
+                painting.position.set(offsetX, offsetY, offsetZ);
+                painting.rotation.y = Math.PI / 4; // Align to the oblique wall
+                
+                leftPaintings.push(painting);
+                scene.add(painting);
+            }
+        }
+
+        // Create 4x4 grid of paintings on right oblique wall
+        const rightPaintings = [];
+        for (let row = 0; row < 4; row++) {
+            for (let col = 0; col < 4; col++) {
+                const paintingMaterial = new THREE.MeshBasicMaterial({ 
+                    map: texture
+                });
+                const painting = new THREE.Mesh(new THREE.PlaneGeometry(painting2Width, painting2Height), paintingMaterial);
+                
+                // Positioning calculations for oblique wall
+                const offsetX = 9 * Math.cos(wallAngleRight) + ((col - 1.5) * (painting2Width + painting2Spacing)) * Math.sin(wallAngleRight);
+                const offsetZ = 9 * Math.sin(wallAngleRight) - ((col - 1.5) * (painting2Width + painting2Spacing)) * Math.cos(wallAngleRight);
+                const offsetY = ((1.5 - row) * (painting2Height + painting2Spacing)); // Center vertically
+                
+                painting.position.set(offsetX, offsetY, offsetZ);
+                painting.rotation.y = -Math.PI / 4; // Align to the oblique wall
+                
+                rightPaintings.push(painting);
+                scene.add(painting);
+            }
+        }
+
+        // tier 3 paintings
+
+        // Painting dimensions and spacing
+        const painting3Width = .25;
+        const painting3Height = .25;
+        const painting3Spacing = 0.1;
+
+        // Add 16x16 grid on left (parallel) wall
+        const leftParallelPaintings = [];
+        for (let row = 0; row < 16; row++) {
+            for (let col = 0; col < 16; col++) {
+                const paintingMaterial = new THREE.MeshBasicMaterial({ 
+                    map: texture
+                });
+                const painting = new THREE.Mesh(new THREE.PlaneGeometry(painting3Width, painting3Height), paintingMaterial);
+                
+                // Positioning calculations for parallel wall
+                const offsetX = -9.2; // Close to left wall
+                const offsetZ = (col - 7.5) * (painting3Width + painting3Spacing); // Center horizontally
+                const offsetY = (7.5 - row) * (painting3Height + painting3Spacing); // Center vertically
+                
+                painting.position.set(offsetX, offsetY, offsetZ);
+                painting.rotation.y = Math.PI / 2; // Align to the parallel wall
+                
+                leftParallelPaintings.push(painting);
+                scene.add(painting);
+            }
+        }
+
+        // Add 16x16 grid on right (parallel) wall
+        const rightParallelPaintings = [];
+        for (let row = 0; row < 16; row++) {
+            for (let col = 0; col < 16; col++) {
+                const paintingMaterial = new THREE.MeshBasicMaterial({ 
+                    map: texture 
+                });
+                const painting = new THREE.Mesh(new THREE.PlaneGeometry(painting3Width, painting3Height), paintingMaterial);
+                
+                // Positioning calculations for parallel wall
+                const offsetX = 9.2; // Close to right wall
+                const offsetZ = (col - 7.5) * (painting3Width + painting3Spacing); // Center horizontally
+                const offsetY = (7.5 - row) * (painting3Height + painting3Spacing); // Center vertically
+                
+                painting.position.set(offsetX, offsetY, offsetZ);
+                painting.rotation.y = -Math.PI / 2; // Align to the parallel wall
+                
+                rightParallelPaintings.push(painting);
+                scene.add(painting);
+            }
+        }
+
+        // tier 4 paintings
+
+        // Back walls paintings
+        const paintingMaterials = [
+            new THREE.MeshBasicMaterial({
+                map: textureLoader.load('dummy_big_right.png'),
+                side: THREE.DoubleSide
+            }),
+            new THREE.MeshBasicMaterial({
+                map: textureLoader.load('dummy_big_mid.png')
+            }),
+            new THREE.MeshBasicMaterial({
+                map: textureLoader.load('dummy_big_left.png'),
+                side: THREE.DoubleSide
+            })
+        ];
+
+        // Right painting (behind starting viewpoint)
+        const rightGeometry = new THREE.PlaneGeometry(6.8, 6.8); // Adjust for 1500x1500 (1:1 ratio)
+        const rightPainting = new THREE.Mesh(rightGeometry, paintingMaterials[0]);
+        rightPainting.position.set(
+            -7 * Math.cos(Math.PI / 4),
+            0, 
+            11 * Math.sin(Math.PI / 4)
+        );
+        rightPainting.rotation.y = - 5 * Math.PI / 4;
+        scene.add(rightPainting);
+
+        // Middle painting (behind starting viewpoint center)
+        const midGeometry = new THREE.PlaneGeometry(6.8, 6.8); // Adjust for 1500x3000 (1:2 ratio)
+        const midPainting = new THREE.Mesh(midGeometry, paintingMaterials[1]);
+        midPainting.position.set(0, 0, 9.2);
+        midPainting.rotation.y = Math.PI;
+        scene.add(midPainting);
+
+        // Right painting (behind starting viewpoint)
+        const leftGeometry = new THREE.PlaneGeometry(6.8, 6.8); // Adjust for 1500x1500 (1:1 ratio)
+        const leftPainting = new THREE.Mesh(leftGeometry, paintingMaterials[2]);
+        leftPainting.position.set(
+            7 * Math.cos(Math.PI / 4), // Slight offset outward
+            0, 
+            11 * Math.sin(Math.PI / 4) // Slight offset outward
+        );
+        leftPainting.rotation.y = 5 * Math.PI / 4;
+        scene.add(leftPainting);
+
+
+        // Fire pit base
+        const baseGeometry = new THREE.CylinderGeometry(2, 2.5, 1, 32);
+        const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x404040 });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
+        base.position.y = -4.5;
+        base.castShadow = true;
+        base.receiveShadow = true;
+        scene.add(base);
+
+        // Fire pit bowl
+        const bowlGeometry = new THREE.CylinderGeometry(1.5, 2, 0.5, 32);
+        const bowlMaterial = new THREE.MeshPhongMaterial({ color: 0x303030 });
+        const bowl = new THREE.Mesh(bowlGeometry, bowlMaterial);
+        bowl.position.y = -4;
+        bowl.castShadow = true;
+        bowl.receiveShadow = true;
+        scene.add(bowl);
+
+        // Flame particles
+        const flameParticles = [];
+        const flameGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+        const flameMaterial = new THREE.MeshBasicMaterial({
+            color: 0xff3300,
+            transparent: true,
+            opacity: 0.7
+        });
+
+        for (let i = 0; i < 50; i++) {
+            const flame = new THREE.Mesh(flameGeometry, flameMaterial);
+            flame.position.y = -3.8;
+            flame.userData = {
+                velocity: Math.random() * 0.05 + 0.02,
+                offset: Math.random() * Math.PI * 2
+            };
+            flameParticles.push(flame);
+            scene.add(flame);
+        }
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+        scene.add(ambientLight);
+
+        const fireLight = new THREE.PointLight(0xff6600, 1, 20);
+        fireLight.position.set(0, -3.5, 0);
+        fireLight.castShadow = true;
+        scene.add(fireLight);
+
+        // Camera setup
+        camera.position.set(0, 0, 8);
+        let pitch = 0;
+        let yaw = 0;
+
+        // Mouse movement
+        function onMouseMove(event) {
+            if (!canMove) return;
+
+            const sensitivity = 0.002;
+            yaw -= event.movementX * sensitivity;
+            pitch -= event.movementY * sensitivity;
+
+            // Limit pitch to avoid over-rotation
+            pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, pitch));
+
+            // Update camera rotation
+            camera.rotation.order = 'YXZ';
+            camera.rotation.x = pitch;
+            camera.rotation.y = yaw;
+        }
+
+        // Movement controls
+        document.addEventListener('keydown', (event) => {
+            switch (event.code) {
+                case 'KeyA': moveLeft = true; break;
+                case 'KeyD': moveRight = true; break;
+                case 'KeyW': moveBackward = true; break; // Reverse W and S directions
+                case 'KeyS': moveForward = true; break;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyD': moveRight = false; break;
+                case 'KeyW': moveBackward = false; break;
+                case 'KeyS': moveForward = false; break;
+            }
+        });
+
+        // Lock pointer on click
+        renderer.domElement.addEventListener('click', () => {
+            renderer.domElement.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            canMove = document.pointerLockElement === renderer.domElement;
+        });
+
+        // Mouse movement
+        document.addEventListener('mousemove', onMouseMove);
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Movement
+            if (canMove) {
+                const moveSpeed = 0.1;
+                const forward = new THREE.Vector3(
+                    Math.sin(yaw),
+                    0,
+                    Math.cos(yaw)
+                );
+                const right = new THREE.Vector3(
+                    Math.sin(yaw + Math.PI/2),
+                    0,
+                    Math.cos(yaw + Math.PI/2)
+                );
+
+                if (moveForward) camera.position.addScaledVector(forward, moveSpeed);
+                if (moveBackward) camera.position.addScaledVector(forward, -moveSpeed);
+                if (moveLeft) camera.position.addScaledVector(right, -moveSpeed);
+                if (moveRight) camera.position.addScaledVector(right, moveSpeed);
+
+                // Limit movement within room
+                const roomRadius = 9;
+                const distanceFromCenter = Math.sqrt(camera.position.x ** 2 + camera.position.z ** 2);
+                if (distanceFromCenter > roomRadius) {
+                    const scalingFactor = roomRadius / distanceFromCenter;
+                    camera.position.x *= scalingFactor;
+                    camera.position.z *= scalingFactor;
+                }
+            }
+
+            // Animate flames
+            const time = Date.now() * 0.001;
+            flameParticles.forEach(flame => {
+                const offset = flame.userData.offset;
+                const velocity = flame.userData.velocity;
+
+                flame.position.x = Math.sin(time + offset) * 0.3;
+                flame.position.z = Math.cos(time + offset) * 0.3;
+                flame.position.y += velocity;
+
+                if (flame.position.y > -3) {
+                    flame.position.y = -3.8;
+                }
+
+                flame.material.opacity = Math.random() * 0.3 + 0.4;
+            });
+
+            // Animate fire light
+            fireLight.intensity = 1 + Math.sin(time * 4) * 0.2;
+
+            renderer.render(scene, camera);
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', onWindowResize, false);
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
